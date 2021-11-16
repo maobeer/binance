@@ -12,12 +12,11 @@ from pprint import pprint
 from binance.exceptions import *
 from ccxt.base.errors import *
 from requests.exceptions import *
+import os
 
 
 # create database in the first time that execute the code
 def create_database():
-    global mean_vol
-    time.sleep(1)
     data = exchange.fetch_ohlcv(symbol + f'/{pair}', timeframe, limit=400)
     data_frame = pd.DataFrame(data[:-1], columns=['time', 'open', 'high', 'low', 'close', 'volume'])
     data_frame = data_frame.set_index(['time'])
@@ -26,8 +25,11 @@ def create_database():
     check = check_delta_time(data_frame)
     if check:
         data_frame.to_sql(f'{symbol}{pair}{timeframe}', engine, if_exists='replace')
-        print('*' * 63)
+        print('*' * 69)
         print(f'\nDATABASE: {symbol}{pair}{timeframe} HAD BEEN CREATED:')
+        return True
+    else:
+        return False
 
 
 def show_database(data_frame):
@@ -72,32 +74,28 @@ def show_database(data_frame):
             f'Volume: {data_frame.volume[-1]} ({mean_vol}) ' \
             f'MEAN: {round(data_frame.volume.mean())}' \
             f' STD: ±{"{:.2f}".format(data_frame.volume.std())} {symbol}/{timeframe}'
-    print(state + '\n' + str('-' * 63))
+    print(state + '\n' + str('-' * 69))
 
 
 # fetch new dataframe for updating
 def fetch_new(dt):
     while True:
-        df = dt
+        d_f = dt
         tf = timeframe
         data = exchange.fetch_ohlcv(symbol + f'/{pair}', tf, limit=3)
         data_frame = pd.DataFrame(data[:-1], columns=['time', 'open', 'high', 'low', 'close', 'volume'])
         data_frame = data_frame.set_index(['time'])
         data_frame.index = pd.to_datetime(data_frame.index, unit='ms')
-        cd1 = df.index[-1]
+        cd1 = d_f.index[-1]
         cd2 = data_frame.index[-2]
         if cd2 == cd1:
             return data_frame.tail(1)
         time.sleep(0.1)
 
 
-mean_vol = ''
-
-
 # keep update database
 def update_database():
-    global mean_vol
-    data = dataframe(ma - 1)
+    data = dataframe()
     df_new = fetch_new(data)
     if df_new is None:
         return False
@@ -106,62 +104,16 @@ def update_database():
         check = check_delta_time(data_frame)
         if check:
             data_frame = update_supertrends(data_frame)
-            data_frame.tail(ma).to_sql(f'{symbol}{pair}{timeframe}', engine, if_exists='replace')
+            data_frame.tail(400).to_sql(f'{symbol}{pair}{timeframe}', engine, if_exists='replace')
             print('*' * 63)
             print(f'\nDATABASE: {symbol}{pair}{timeframe} HAD BEEN UPDATED:')
             return True
-        #     print('Length of dataframe: ' + str(len(data_frame.index)) + f' P/L ratios: ({my_l_target}:1)')
-        #     lower = binance.helpers.round_step_size(data_frame.lowerband[-1], tick_size / 10)
-        #     upper = binance.helpers.round_step_size(data_frame.upperband[-1], tick_size / 10)
-        #     if data_frame.in_uptrend[-1]:
-        #         trend = 'Up trend'
-        #         band = f'Lower Band: {lower}'
-        #     elif not data_frame.in_uptrend[-1]:
-        #         trend = 'Down trend'
-        #         band = f'Upper Band: {upper}'
-        #     else:
-        #         trend = 'None'
-        #         band = f'Lower Band: None'
-        #     if round(data_frame.volume.mean()) >= data_frame.volume[-1]:
-        #         mean_vol = 'Below mean'
-        #     else:
-        #         mean_vol = 'Beyond mean'
-        #     if data_frame.close[-1] > data_frame.MA[-1]:
-        #         ma_line = 'Close above MA'
-        #     else:
-        #         ma_line = 'Close below MA'
-        #     ss = exchange.fetch_balance()[pair]['total'] * \
-        #         float(leverage['leverage']) * set_amount / data_frame.close[-1]
-        #     sz = binance.helpers.round_step_size(ss, step_size)
-        #     state = f'Symbol: {symbol} | ' \
-        #             f'Pair: {pair} | ' \
-        #             f'Timeframe: {timeframe} | ' \
-        #             f'Time: {datetime.today().strftime("%H:%M:%S")}\n' \
-        #             f"Sizing: {sz} " \
-        #             f"MIN({min_qty}) " \
-        #             f'Step({step_size}) ' \
-        #             f'Tick({tick_size})\n' \
-        #             f'Data time: {data_frame.index[-2]} | ' \
-        #             f'Close: {data_frame.close[-2]} | ' \
-        #             f'MA{ma}: {binance.helpers.round_step_size(data_frame.MA[-2], tick_size / 10)}\n' \
-        #             f'Data time: {data_frame.index[-1]} | ' \
-        #             f'Close: {data_frame.close[-1]} | ' \
-        #             f'MA{ma}: {binance.helpers.round_step_size(data_frame.MA[-1], tick_size / 10)}\n' \
-        #             f'Trend: {trend} | {band} ({ma_line})\n' \
-        #             f'Volume: {data_frame.volume[-1]} ({mean_vol}) ' \
-        #             f'MEAN: {round(data_frame.volume.mean())}' \
-        #             f' STD: ±{"{:.2f}".format(data_frame.volume.std())} {symbol}/{timeframe}'
-        #
-        #     print(state + '\n' + str('-' * 63))
-        #     return True
-        # else:
-        #     return False
 
 
 # use this to if you wanna dataframe
-def dataframe(tails=20):
+def dataframe():
     data_frame = pd.read_sql(f'{symbol}{pair}{timeframe}', engine, index_col='time')
-    return data_frame.tail(tails)
+    return data_frame
 
 
 # True range calculator
@@ -261,12 +213,12 @@ condition = True
 
 # RUN IT
 def run_bot():
-    global current_data, had_error, condition
+    global had_error, condition
     # update
     while True:
         try:
             if update_database():
-                current_data = dataframe(3)
+                current_data = dataframe()
                 show_database(current_data)
                 print('DATA CHECK: Passed')
                 try:
@@ -281,20 +233,20 @@ def run_bot():
                     time.sleep(10)
 
                 condition = True
-                print('-' * 63)
+                print('-' * 69)
                 break
             else:
                 # create new if unable to update
                 try:
                     time.sleep(2)
                     create_database()
-                    current_data = dataframe(3)
+                    current_data = dataframe()
                     print('DATA CHECK: Fixed')
                     trade(current_data)
                     print('Balance:', exchange.fetch_balance()[pair]['total'],
                           'Free:', exchange.fetch_balance()[pair]['free'])
                     condition = True
-                    print('-' * 63)
+                    print('-' * 69)
                     break
                 except Exception as create_data_fail:
                     print('Fail to update database: ', create_data_fail)
@@ -396,46 +348,45 @@ def trade(data):
         elif sl_order['status'] == 'NEW' and tp_order['status'] == 'NEW':
             print('SL AND TP ARE NEW')
             if data_f.in_uptrend[-1]:
-                try:
-                    sl_order = client.futures_cancel_order(symbol=s_symbols, orderId=sl_order['orderId'])
-                except BinanceAPIException as cancel_error:
-                    if cancel_error.code == -2011:
-                        print(cancel_error)
-                        client.futures_cancel_all_open_orders(symbol=s_symbols)
-                        tp_order = create_take_profit(data_f, tp_order['price'])
-                time.sleep(1)
-                sl_order = create_stop_loss(data_f)
-
-                if position_price < data_f.lowerband[-1]:
+                if data_f.lowerband[-1] != data_f.lowerband[-2:]:
                     try:
-                        print('Cancel TP')
-                        tp_order = client.futures_cancel_order(symbol=s_symbols, orderId=tp_order['orderId'])
-                        tp_order = {'status': None}
+                        sl_order = client.futures_cancel_order(symbol=s_symbols, orderId=sl_order['orderId'])
                     except BinanceAPIException as cancel_error:
                         if cancel_error.code == -2011:
-                            client.futures_cancel_all_open_orders(symbol=s_symbols)
-                            sl_order = create_stop_loss(data_f)
                             print(cancel_error)
+                            client.futures_cancel_all_open_orders(symbol=s_symbols)
+                            tp_order = create_take_profit(data_f, tp_order['price'])
+                    sl_order = create_stop_loss(data_f)
+
+                # if position_price < data_f.lowerband[-1]:
+                #     try:
+                #         print('Cancel TP')
+                #         tp_order = client.futures_cancel_order(symbol=s_symbols, orderId=tp_order['orderId'])
+                #         tp_order = {'status': None}
+                #     except BinanceAPIException as cancel_error:
+                #         if cancel_error.code == -2011:
+                #             client.futures_cancel_all_open_orders(symbol=s_symbols)
+                #             sl_order = create_stop_loss(data_f)
+                #             print(cancel_error)
 
             elif not data_f.in_uptrend[-1]:
-                try:
-                    sl_order = client.futures_cancel_order(symbol=s_symbols, orderId=sl_order['orderId'])
-                except BinanceAPIException as cancel_error:
-                    if cancel_error.code == -2011:
-                        print(cancel_error)
-                        client.futures_cancel_all_open_orders(symbol=s_symbols)
-
-                time.sleep(1)
-                sl_order = create_stop_loss(data_f)
-
-                if position_price > data_f.upperband[-1]:
+                if data_f.upperband[-1] != data_f.upperband[-2]:
                     try:
-                        print('Cancel TP')
-                        tp_order = client.futures_cancel_order(symbol=s_symbols, orderId=tp_order['orderId'])
-                        tp_order = {'status': None}
+                        sl_order = client.futures_cancel_order(symbol=s_symbols, orderId=sl_order['orderId'])
                     except BinanceAPIException as cancel_error:
                         if cancel_error.code == -2011:
                             print(cancel_error)
+                            client.futures_cancel_all_open_orders(symbol=s_symbols)
+                    sl_order = create_stop_loss(data_f)
+
+                # if position_price > data_f.upperband[-1]:
+                #     try:
+                #         print('Cancel TP')
+                #         tp_order = client.futures_cancel_order(symbol=s_symbols, orderId=tp_order['orderId'])
+                #         tp_order = {'status': None}
+                #     except BinanceAPIException as cancel_error:
+                #         if cancel_error.code == -2011:
+                #             print(cancel_error)
 
     if data_f.in_uptrend[-1] and not data_f.in_uptrend[-2]:
         state = 'Change to UP TREND'
@@ -603,7 +554,6 @@ def create_limit(limit_price, side_str):
         order_side = SIDE_SELL
     sizing = float(exchange.fetch_balance()[pair]['total']) * set_amount
 
-
     od = {'status': None}
     while od['status'] != 'NEW':
         try:
@@ -620,8 +570,14 @@ def create_limit(limit_price, side_str):
                                              quantity=qty,
                                              price=str(prices))
             print('Limit order had been created')
-            with open(f'{symbol}{timeframe}_order.txt', 'w') as order__:
-                order__.write(str(od['orderId']))
+            try:
+                with open(f'order/{symbol}/{symbol}{timeframe}_order.txt', 'w') as order__:
+                    order__.write(str(od['orderId']))
+            except FileNotFoundError:
+                directory = f'order/{symbol}'
+                os.mkdir(directory)
+                with open(f'order/{symbol}/{symbol}{timeframe}_order.txt', 'w') as order__:
+                    order__.write(str(od['orderId']))
             return od
         except BinanceAPIException as order_error:
             print(order_error)
@@ -667,8 +623,14 @@ def create_stop_loss(data):
                                                  stopPrice=str(sl_price),
                                                  workingType='MARK_PRICE')
             print('SL order had been created')
-            with open(f'{symbol}{timeframe}_sl_order.txt', 'w') as sl_file:
-                sl_file.write(str(stop_l['orderId']))
+            try:
+                with open(f'order/{symbol}/{symbol}{timeframe}_sl_order.txt', 'w') as sl_file:
+                    sl_file.write(str(stop_l['orderId']))
+            except FileNotFoundError:
+                directory = f'order/{symbol}'
+                os.mkdir(directory)
+                with open(f'order/{symbol}/{symbol}{timeframe}_sl_order.txt', 'w') as sl_file:
+                    sl_file.write(str(stop_l['orderId']))
             return stop_l
         except TimeoutError:
             time.sleep(10)
@@ -714,9 +676,14 @@ def create_take_profit(data, price=0):
                                              stopPrice=str(tp_price),
                                              price=str(tp_price))
         print('TP order had been created')
-
-        with open(f'{symbol}{timeframe}_tp_order.txt', 'w') as tp_file:
-            tp_file.write(str(take_p['orderId']))
+        try:
+            with open(f'order/{symbol}/{symbol}{timeframe}_tp_order.txt', 'w') as tp_file:
+                tp_file.write(str(take_p['orderId']))
+        except FileNotFoundError:
+            directory = f'order/{symbol}'
+            os.mkdir(directory)
+            with open(f'order/{symbol}/{symbol}{timeframe}_tp_order.txt', 'w') as tp_file:
+                tp_file.write(str(take_p['orderId']))
         return take_p
     except BinanceAPIException as tp_error:
         if tp_error.code == -2021:
@@ -746,8 +713,6 @@ def create_close_market():
         print('CLOSE POSITION ERROR: ', ex_market)
         time.sleep(1)
         order = {'status': None}
-
-
 
 
 def check_real_time():
@@ -848,7 +813,6 @@ ma = int(input('Moving average: '))
 
 # SQL engine
 engine = sqlalchemy.create_engine('sqlite:///supertrend.db')
-current_data = None
 bands = ''
 
 leverage = ''
@@ -880,17 +844,17 @@ while answers is None:
 
     if answers.upper() == 'Y':
         try:
-            with open(f'{symbol}{timeframe}_order.txt', 'r') as file:
+            with open(f'order/{symbol}/{symbol}{timeframe}_order.txt', 'r') as file:
                 order = client.futures_get_order(symbol=s_symbols, orderId=int(file.read()))
 
             if order['status'] == 'FILLED' and position_amt != 0:
-                with open(f'{symbol}{timeframe}_order.txt', 'w') as order_file:
+                with open(f'oder/{symbol}/{symbol}{timeframe}_order.txt', 'w') as order_file:
                     order_file.write(str(order['orderId']))
                 print('Order ID: ', order['orderId'], ' | ',
                       'Price: ', order['price'], ' | ',
                       'STATUS: ', order['status'])
             elif order['status'] == 'NEW' and position_amt == 0:
-                with open(f'{symbol}{timeframe}_order.txt', 'w') as order_file:
+                with open(f'order/{symbol}/{symbol}{timeframe}_order.txt', 'w') as order_file:
                     order_file.write(str(order['orderId']))
                 print('Order ID: ', order['orderId'], ' | ',
                       'Price: ', order['price'], ' | ',
@@ -902,7 +866,7 @@ while answers is None:
         except ValueError:
             print(ValueError)
         try:
-            with open(f'{symbol}{timeframe}_sl_order.txt', 'r') as file:
+            with open(f'order/{symbol}/{symbol}{timeframe}_sl_order.txt', 'r') as file:
                 sl_order = client.futures_get_order(symbol=s_symbols, orderId=int(file.read()))
 
             if sl_order['status'] == 'FILLED':
@@ -922,7 +886,7 @@ while answers is None:
         except ValueError:
             print(ValueError)
         try:
-            with open(f'{symbol}{timeframe}_tp_order.txt', 'r') as file:
+            with open(f'order/{symbol}/{symbol}{timeframe}_tp_order.txt', 'r') as file:
                 tp_order = client.futures_get_order(symbol=s_symbols, orderId=int(file.read()))
 
             if tp_order['status'] == 'FILLED':
@@ -969,8 +933,10 @@ multiplier = 1
 
 triggered = False
 create_data = create_database()
+df = dataframe().tail(100)
 if create_data:
-    trade(dataframe(2))
+    show_database(df)
+    trade(df)
 while not triggered:
     current_time = datetime.today()
     current_minutes = current_time.strftime('%M')
@@ -981,7 +947,7 @@ while not triggered:
             # try:
             if create_data:
                 update_database()
-                trade(dataframe(3))
+                trade(dataframe().tail(100))
                 schedule.every(15).minutes.at(':00').do(run_bot)
                 triggered = True
                 print('15m Triggered')
@@ -1006,7 +972,7 @@ while not triggered:
             # try:
             if create_data:
                 update_database()
-                trade(dataframe(3))
+                trade(dataframe().tail(100))
                 schedule.every(5).minutes.at(':00').do(run_bot)
                 triggered = True
                 print('5m Triggered')
@@ -1039,7 +1005,7 @@ while not triggered:
         elif timeframe == '4h' and current_hours in ['00', '04', '08', '12', '16', '20']:
             if create_data:
                 update_database()
-                trade(dataframe(3))
+                trade(dataframe().tail(100))
                 schedule.every(4).hours.at(':00').do(run_bot)
                 triggered = True
                 print('4h Triggered')
@@ -1082,4 +1048,3 @@ while condition:
             time.sleep(5)
         else:
             time.sleep(0.1)
-
