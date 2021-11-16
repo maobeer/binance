@@ -272,7 +272,8 @@ def trade(data):
         position_price = float(client.futures_position_information(symbol=s_symbols)[0]['entryPrice'])
 
     if position_amt != 0:
-        order = client.futures_get_order(symbol=s_symbols, orderId=order['orderId'])
+        # if order['status'] is not None:
+        #     order = client.futures_get_order(symbol=s_symbols, orderId=order['orderId'])
 
         if sl_order['status'] is None and tp_order['status'] is None:
             print('SL AND TP ARE NONE')
@@ -348,7 +349,7 @@ def trade(data):
         elif sl_order['status'] == 'NEW' and tp_order['status'] == 'NEW':
             print('SL AND TP ARE NEW')
             if data_f.in_uptrend[-1]:
-                if data_f.lowerband[-1] != data_f.lowerband[-2:]:
+                if data_f.lowerband[-1] != data_f.lowerband[-2]:
                     try:
                         sl_order = client.futures_cancel_order(symbol=s_symbols, orderId=sl_order['orderId'])
                     except BinanceAPIException as cancel_error:
@@ -511,9 +512,10 @@ def trade(data):
 
     else:
         if position_amt != 0:
-            print('Order ID: ', order['orderId'], ' | ',
-                  'Price: ', order['price'], ' | ',
-                  'STATUS: ', order['status'])
+            if order['status'] is not None:
+                print('Order ID: ', order['orderId'], ' | ',
+                      'Price: ', order['price'], ' | ',
+                      'STATUS: ', order['status'])
             if sl_order['status'] is not None:
                 sl_order = client.futures_get_order(symbol=s_symbols, orderId=sl_order['orderId'])
                 print('SL order ID: ', sl_order['orderId'], ' | ',
