@@ -537,10 +537,8 @@ def trade(data):
                       'Price: ', order['price'], ' | ',
                       'STATUS: ', order['status'])
                 if data_f.in_uptrend[-1] and data_f.lowerband[-1] > float(order['price']):
-                    order = client.futures_cancel_order(symbol=s_symbols, orderId=order['orderId'])
                     order = {'status': None}
                 elif not data_f.in_uptrend[-1] and data_f.upperband[-1] < float(order['price']):
-                    order = client.futures_cancel_order(symbol=s_symbols, orderId=order['orderId'])
                     order = {'status': None}
             else:
                 print("You're not in position")
