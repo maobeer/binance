@@ -360,7 +360,7 @@ def trade(data):
                             client.futures_cancel_all_open_orders(symbol=s_symbols)
                             tp_order = create_take_profit(data_f, tp_order['price'])
                     sl_order = create_stop_loss(data_f)
-
+                else:
                     try:
                         tp_order = client.futures_cancel_order(symbol=s_symbols, orderId=tp_order['orderId'])
                         tp_order = {'status': None}
@@ -391,7 +391,7 @@ def trade(data):
                             print(cancel_error)
                             client.futures_cancel_all_open_orders(symbol=s_symbols)
                     sl_order = create_stop_loss(data_f)
-
+                else:
                     try:
                         tp_order = client.futures_cancel_order(symbol=s_symbols, orderId=tp_order['orderId'])
                         tp_order = {'status': None}
