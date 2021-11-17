@@ -718,9 +718,12 @@ def check_real_time():
     global order, sl_order, tp_order, position_amt
     try:
         position_amt = float(client.futures_position_information(symbol=s_symbols)[0]['positionAmt'])
-        order = client.futures_get_order(symbol=s_symbols, orderId=order['orderId'])
-        sl_order = client.futures_get_order(symbol=s_symbols, orderId=sl_order['orderId'])
-        tp_order = client.futures_get_order(symbol=s_symbols, orderId=tp_order['orderId'])
+        if order['status'] is not None:
+            order = client.futures_get_order(symbol=s_symbols, orderId=order['orderId'])
+        if sl_order['status'] is not None:
+            sl_order = client.futures_get_order(symbol=s_symbols, orderId=sl_order['orderId'])
+        if tp_order['status'] is not None:
+            tp_order = client.futures_get_order(symbol=s_symbols, orderId=tp_order['orderId'])
     except NetworkError or ConnectionError or ChunkedEncodingError:
         time.sleep(2)
         position_amt = float(client.futures_position_information(symbol=s_symbols)[0]['positionAmt'])
