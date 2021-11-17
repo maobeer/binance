@@ -353,12 +353,23 @@ def trade(data):
                 if data_f.lowerband[-1] != data_f.lowerband[-2]:
                     try:
                         sl_order = client.futures_cancel_order(symbol=s_symbols, orderId=sl_order['orderId'])
+
                     except BinanceAPIException as cancel_error:
                         if cancel_error.code == -2011:
                             print(cancel_error)
                             client.futures_cancel_all_open_orders(symbol=s_symbols)
                             tp_order = create_take_profit(data_f, tp_order['price'])
                     sl_order = create_stop_loss(data_f)
+
+                    try:
+                        tp_order = client.futures_cancel_order(symbol=s_symbols, orderId=tp_order['orderId'])
+                        tp_order = {'status': None}
+                    except BinanceAPIException as cancel_error:
+                        if cancel_error.code == -2011:
+                            client.futures_cancel_all_open_orders(symbol=s_symbols)
+                            sl_order = create_stop_loss(data_f)
+                            print(cancel_error)
+                    tp_order = create_take_profit(data_f)
 
                 # if position_price < data_f.lowerband[-1]:
                 #     try:
@@ -380,6 +391,16 @@ def trade(data):
                             print(cancel_error)
                             client.futures_cancel_all_open_orders(symbol=s_symbols)
                     sl_order = create_stop_loss(data_f)
+
+                    try:
+                        tp_order = client.futures_cancel_order(symbol=s_symbols, orderId=tp_order['orderId'])
+                        tp_order = {'status': None}
+                    except BinanceAPIException as cancel_error:
+                        if cancel_error.code == -2011:
+                            client.futures_cancel_all_open_orders(symbol=s_symbols)
+                            sl_order = create_stop_loss(data_f)
+                            print(cancel_error)
+                    tp_order = create_take_profit(data_f)
 
                 # if position_price > data_f.upperband[-1]:
                 #     try:
@@ -403,7 +424,7 @@ def trade(data):
                 create_close_market()
                 client.futures_cancel_all_open_orders(symbol=s_symbols)
                 # create open long order
-                if exchange.fetch_balance()[pair]['free'] > 1 \
+                if exchange.fetch_balance()[pair]['free'] > 0.5 \
                         and prices > data_f.MA[-1]:
                     order = create_limit(prices, 'buy')
                     sl_order = {'status': None}
@@ -443,7 +464,7 @@ def trade(data):
             tp_order = {'status': None}
             order = {'status': None}
             # create open long position
-            if exchange.fetch_balance()[pair]['free'] > 1 \
+            if exchange.fetch_balance()[pair]['free'] > 0.5 \
                     and prices > data_f.MA[-1]:
                 order = create_limit(prices, 'buy')
                 print('Order ID: ', order['orderId'], ' | ',
@@ -466,7 +487,7 @@ def trade(data):
                 client.futures_cancel_all_open_orders(symbol=s_symbols)
                 create_close_market()
                 # open short order
-                if exchange.fetch_balance()[pair]['free'] > 1 \
+                if exchange.fetch_balance()[pair]['free'] > 0.5 \
                         and prices < data_f.MA[-1]:
                     order = create_limit(prices, 'sell')
                     sl_order = {'status': None}
@@ -497,7 +518,7 @@ def trade(data):
             tp_order = {'status': None}
             order = {'status': None}
             # open short order
-            if exchange.fetch_balance()[pair]['free'] > 1 \
+            if exchange.fetch_balance()[pair]['free'] > 0.5 \
                     and prices < data_f.MA[-1]:
                 order = create_limit(prices, 'sell')
                 sl_order = {'status': None}
