@@ -318,7 +318,7 @@ def trade(data):
                         tp_order = {'status': None}
                 else:
                     print('TP order: run trend')
-                sl_order = client.futures_get_order(symbol=s_symbols, orderId=sl_order['orderId'])
+                # sl_order = client.futures_get_order(symbol=s_symbols, orderId=sl_order['orderId'])
 
             elif not data_f.in_uptrend[-1]:
                 if sl_order['status'] is not None:
@@ -395,10 +395,10 @@ def trade(data):
 
         # if in position
         if position_amt != 0:
-            order = client.futures_get_order(symbol=s_symbols, orderId=order['orderId'])
-            sides = order['side']
+            # order = client.futures_get_order(symbol=s_symbols, orderId=order['orderId'])
+            # sides = order['side']
             # if in short position
-            if sides == 'SELL' and position_amt != 0:
+            if position_amt < 0:
                 create_close_market()
                 client.futures_cancel_all_open_orders(symbol=s_symbols)
                 # create open long order
@@ -459,9 +459,10 @@ def trade(data):
         state = 'Change to DOWN TREND'
         print(state)
         if position_amt != 0:
-            order = client.futures_get_order(symbol=s_symbols, orderId=order['orderId'])
-            sides = order['side']
-            if sides == 'BUY':
+            # order = client.futures_get_order(symbol=s_symbols, orderId=order['orderId'])
+            # sides = order['side']
+            if position_amt > 0:
+                client.futures_cancel_all_open_orders(symbol=s_symbols)
                 create_close_market()
                 # open short order
                 if exchange.fetch_balance()[pair]['free'] > 1 \
@@ -497,7 +498,6 @@ def trade(data):
             # open short order
             if exchange.fetch_balance()[pair]['free'] > 1 \
                     and prices < data_f.MA[-1]:
-                client.futures_cancel_all_open_orders(symbol=s_symbols)
                 order = create_limit(prices, 'sell')
                 sl_order = {'status': None}
                 tp_order = {'status': None}
@@ -542,7 +542,6 @@ def trade(data):
                     order = {'status': None}
             else:
                 print("You're not in position")
-                time.sleep(1)
 
 
 def create_limit(limit_price, side_str):
@@ -719,9 +718,19 @@ def check_real_time():
     global order, sl_order, tp_order, position_amt
     try:
         position_amt = float(client.futures_position_information(symbol=s_symbols)[0]['positionAmt'])
+        order = client.futures_get_order(symbol=s_symbols, orderId=order['orderId'])
+        sl_order = client.futures_get_order(symbol=s_symbols, orderId=sl_order['orderId'])
+        tp_order = client.futures_get_order(symbol=s_symbols, orderId=tp_order['orderId'])
     except NetworkError or ConnectionError or ChunkedEncodingError:
         time.sleep(2)
         position_amt = float(client.futures_position_information(symbol=s_symbols)[0]['positionAmt'])
+    except BinanceAPIException as order_error:
+        if order_error.code == -2021:
+            print(order_error)
+            client.futures_cancel_all_open_orders(symbol=s_symbols)
+            order = {'status': None}
+            sl_order = {'status': None}
+            tp_order = {'status': None}
     if order['status'] is not None:
         try:
             if position_amt == 0 and order['status'] != 'NEW':
