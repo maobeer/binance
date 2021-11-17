@@ -27,6 +27,7 @@ def create_database():
         data_frame.to_sql(f'{symbol}{pair}{timeframe}', engine, if_exists='replace')
         print('*' * 69)
         print(f'\nDATABASE: {symbol}{pair}{timeframe} HAD BEEN CREATED:')
+
         return True
     else:
         return False
@@ -105,7 +106,7 @@ def update_database():
         if check:
             data_frame = update_supertrends(data_frame)
             data_frame.tail(400).to_sql(f'{symbol}{pair}{timeframe}', engine, if_exists='replace')
-            print('*' * 63)
+            print('*' * 69)
             print(f'\nDATABASE: {symbol}{pair}{timeframe} HAD BEEN UPDATED:')
             return True
 
@@ -1036,7 +1037,7 @@ while not triggered:
 
 print('Balance:', exchange.fetch_balance()['USDT']['total'],
       'Free:', exchange.fetch_balance()['USDT']['free'])
-print('-' * 63)
+print('-' * 69)
 
 while condition:
 
