@@ -266,89 +266,31 @@ def trade(data):
     prices = data_f.close[-1]
     try:
         position_amt = float(client.futures_position_information(symbol=s_symbols)[0]['positionAmt'])
-        position_price = float(client.futures_position_information(symbol=s_symbols)[0]['entryPrice'])
-    except ConnectionError:
-        time.sleep(2)
+        # position_price = float(client.futures_position_information(symbol=s_symbols)[0]['entryPrice'])
+    except ConnectionError or RequestTimeout or ReadTimeout:
+        time.sleep(5)
         position_amt = float(client.futures_position_information(symbol=s_symbols)[0]['positionAmt'])
-        position_price = float(client.futures_position_information(symbol=s_symbols)[0]['entryPrice'])
+        # position_price = float(client.futures_position_information(symbol=s_symbols)[0]['entryPrice'])
+
 
     if position_amt != 0:
         # if order['status'] is not None:
         #     order = client.futures_get_order(symbol=s_symbols, orderId=order['orderId'])
 
         if sl_order['status'] is None and tp_order['status'] is None:
-            print('SL AND TP ARE NONE')
             client.futures_cancel_all_open_orders(symbol=s_symbols)
-            time.sleep(1)
             sl_order = create_stop_loss(data_f)
-
-            if data_f.in_uptrend[-1] and data_f.lowerband[-1] < position_price:
-                time.sleep(1)
-                tp_order = create_take_profit(data_f)
-
-            elif not data_f.in_uptrend[-1] and data_f.upperband[-1] > position_price:
-                time.sleep(1)
-                tp_order = create_take_profit(data_f)
-            else:
-                print('TP order: run trend')
+            tp_order = create_take_profit(data_f)
 
         elif tp_order['status'] is None or sl_order['status'] is None:
-            print('SL OR TP IS NONE')
             if data_f.in_uptrend[-1]:
-                if sl_order['status'] is not None:
-                    try:
-                        sl_order = client.futures_cancel_order(symbol=s_symbols, orderId=sl_order['orderId'])
-                    except BinanceAPIException as cancel_error:
-                        if cancel_error.code == -2011:
-                            print(cancel_error)
-                            client.futures_cancel_all_open_orders(symbol=s_symbols)
+                if sl_order['status'] is None:
+                    sl_order = create_stop_loss(data_f)
 
-                time.sleep(1)
-                sl_order = create_stop_loss(data_f)
-
-                if data_f.lowerband[-1] < position_price:
-                    try:
-                        time.sleep(1)
-                        tp_order = create_take_profit(data_f)
-
-                    except TypeError:
-                        print('Create TP order failed')
-                        tp_order = {'status': None}
-                    except BinanceAPIException:
-                        print('Create TP order failed')
-                        tp_order = {'status': None}
-                else:
-                    print('TP order: run trend')
-                # sl_order = client.futures_get_order(symbol=s_symbols, orderId=sl_order['orderId'])
-
-            elif not data_f.in_uptrend[-1]:
-                if sl_order['status'] is not None:
-                    try:
-                        sl_order = client.futures_cancel_order(symbol=s_symbols, orderId=sl_order['orderId'])
-                    except BinanceAPIException as cancel_error:
-                        if cancel_error.code == -2011:
-                            print(cancel_error)
-                            client.futures_cancel_all_open_orders(symbol=s_symbols)
-
-                time.sleep(1)
-                sl_order = create_stop_loss(data_f)
-
-                if data_f.upperband[-1] > position_price:
-                    try:
-                        time.sleep(1)
-                        tp_order = create_take_profit(data_f)
-
-                    except TypeError:
-                        print('Create TP order failed')
-                        tp_order = {'status': None}
-                    except BinanceAPIException:
-                        print('Create TP order failed')
-                        tp_order = {'status': None}
-                else:
-                    print('TP order: run trend')
+                if tp_order['status'] is None:
+                    tp_order = create_take_profit(data_f)
 
         elif sl_order['status'] == 'NEW' and tp_order['status'] == 'NEW':
-            print('SL AND TP ARE NEW')
             if data_f.in_uptrend[-1]:
                 if data_f.lowerband[-1] != data_f.lowerband[-2]:
                     try:
@@ -357,8 +299,14 @@ def trade(data):
                     except BinanceAPIException as cancel_error:
                         if cancel_error.code == -2011:
                             print(cancel_error)
+                            time.sleep(5)
                             client.futures_cancel_all_open_orders(symbol=s_symbols)
                             tp_order = create_take_profit(data_f, tp_order['price'])
+                    except ConnectionError:
+                        print(ConnectionError)
+                        time.sleep(5)
+                        client.futures_cancel_all_open_orders(symbol=s_symbols)
+                        tp_order = create_take_profit(data_f, tp_order['price'])
                     sl_order = create_stop_loss(data_f)
                 else:
                     try:
@@ -366,9 +314,15 @@ def trade(data):
                         tp_order = {'status': None}
                     except BinanceAPIException as cancel_error:
                         if cancel_error.code == -2011:
+                            time.sleep(5)
                             client.futures_cancel_all_open_orders(symbol=s_symbols)
                             sl_order = create_stop_loss(data_f)
                             print(cancel_error)
+                    except ConnectionError:
+                        print(ConnectionError)
+                        time.sleep(5)
+                        client.futures_cancel_all_open_orders(symbol=s_symbols)
+                        sl_order = create_stop_loss(data_f)
                     tp_order = create_take_profit(data_f)
 
                 # if position_price < data_f.lowerband[-1]:
@@ -389,7 +343,14 @@ def trade(data):
                     except BinanceAPIException as cancel_error:
                         if cancel_error.code == -2011:
                             print(cancel_error)
+                            time.sleep(5)
                             client.futures_cancel_all_open_orders(symbol=s_symbols)
+                            tp_order = create_take_profit(data_f, tp_order['price'])
+                    except ConnectionError:
+                        print(ConnectionError)
+                        time.sleep(5)
+                        client.futures_cancel_all_open_orders(symbol=s_symbols)
+                        tp_order = create_take_profit(data_f, tp_order['price'])
                     sl_order = create_stop_loss(data_f)
                 else:
                     try:
@@ -397,9 +358,15 @@ def trade(data):
                         tp_order = {'status': None}
                     except BinanceAPIException as cancel_error:
                         if cancel_error.code == -2011:
+                            print(cancel_error)
+                            time.sleep(5)
                             client.futures_cancel_all_open_orders(symbol=s_symbols)
                             sl_order = create_stop_loss(data_f)
-                            print(cancel_error)
+                    except ConnectionError:
+                        print(ConnectionError)
+                        time.sleep(5)
+                        client.futures_cancel_all_open_orders(symbol=s_symbols)
+                        sl_order = create_stop_loss(data_f)
                     tp_order = create_take_profit(data_f)
 
                 # if position_price > data_f.upperband[-1]:
@@ -414,29 +381,35 @@ def trade(data):
     if data_f.in_uptrend[-1] and not data_f.in_uptrend[-2]:
         state = 'Change to UP TREND'
         print(state)
+        ranges = sl_range(data_f)
+        print('Ranges:', ranges)
 
         # if in position
         if position_amt != 0:
-            # order = client.futures_get_order(symbol=s_symbols, orderId=order['orderId'])
-            # sides = order['side']
-            # if in short position
+
             if position_amt < 0:
-                create_close_market()
-                client.futures_cancel_all_open_orders(symbol=s_symbols)
-                # create open long order
-                if exchange.fetch_balance()[pair]['free'] > 0.5 \
-                        and prices > data_f.MA[-1]:
-                    order = create_limit(prices, 'buy')
-                    sl_order = {'status': None}
-                    tp_order = {'status': None}
-                    print('Order ID: ', order['orderId'], ' | ',
-                          'Price: ', order['price'], ' | ',
-                          'STATUS: ', order['status'])
-                else:
-                    if prices < data_f.MA[-1]:
-                        print('Below MA')
+                try:
+                    create_close_market()
+                    client.futures_cancel_all_open_orders(symbol=s_symbols)
+                    # create open long order
+                    if exchange.fetch_balance()[pair]['free'] > 0.1 \
+                            and prices > data_f.MA[-1] and ranges:
+                        order = create_limit(prices, 'buy')
+                        sl_order = {'status': None}
+                        tp_order = {'status': None}
+                        print('Order ID: ', order['orderId'], ' | ',
+                              'Price: ', order['price'], ' | ',
+                              'STATUS: ', order['status'])
                     else:
-                        print('Insufficient funds')
+                        if prices < data_f.MA[-1]:
+                            print('Below MA')
+                        elif not ranges:
+                            print('Too much SL ranges')
+                        else:
+                            print('Insufficient funds')
+                except ConnectionError:
+                    print(ConnectionError)
+                    time.sleep(5)
             else:
                 if tp_order['status'] is not None:
                     try:
@@ -448,6 +421,9 @@ def trade(data):
                             client.futures_cancel_all_open_orders(symbol=s_symbols)
                             sl_order = {'status': None}
                             tp_order = {'status': None}
+                    except ConnectionError:
+                        print(ConnectionError)
+                        time.sleep(5)
                 if sl_order['status'] is not None:
                     try:
                         sl_order = client.futures_cancel_order(symbol=s_symbols, orderId=sl_order['orderId'])
@@ -458,37 +434,91 @@ def trade(data):
                             client.futures_cancel_all_open_orders(symbol=s_symbols)
                             sl_order = {'status': None}
                             tp_order = {'status': None}
+                    except ConnectionError:
+                        print(ConnectionError)
+                        time.sleep(5)
         else:
-            client.futures_cancel_all_open_orders(symbol=s_symbols)
-            sl_order = {'status': None}
-            tp_order = {'status': None}
-            order = {'status': None}
-            # create open long position
-            if exchange.fetch_balance()[pair]['free'] > 0.5 \
-                    and prices > data_f.MA[-1]:
-                order = create_limit(prices, 'buy')
-                print('Order ID: ', order['orderId'], ' | ',
-                      'Price: ', order['price'], ' | ',
-                      'STATUS: ', order['status'])
+            try:
+                client.futures_cancel_all_open_orders(symbol=s_symbols)
+                sl_order = {'status': None}
+                tp_order = {'status': None}
+                order = {'status': None}
+                # create open long position
+                if exchange.fetch_balance()[pair]['free'] > 0.1 \
+                        and prices > data_f.MA[-1] and ranges:
+                    order = create_limit(prices, 'buy')
+                    print('Order ID: ', order['orderId'], ' | ',
+                          'Price: ', order['price'], ' | ',
+                          'STATUS: ', order['status'])
 
-            else:
-                if prices < data_f.MA[-1]:
-                    print('Below MA')
                 else:
-                    print('Insufficient funds')
+                    if prices < data_f.MA[-1]:
+                        print('Below MA')
+                    elif not ranges:
+                        print('Too much SL ranges')
+                    else:
+                        print('Insufficient funds')
+            except ConnectionError:
+                print(ConnectionError)
+                time.sleep(5)
 
     elif not data_f.in_uptrend[-1] and data_f.in_uptrend[-2]:
         state = 'Change to DOWN TREND'
         print(state)
+        ranges = sl_range(data_f)
+        print('Ranges:', ranges)
+
         if position_amt != 0:
             # order = client.futures_get_order(symbol=s_symbols, orderId=order['orderId'])
             # sides = order['side']
             if position_amt > 0:
+                try:
+                    client.futures_cancel_all_open_orders(symbol=s_symbols)
+                    create_close_market()
+                    # open short order
+                    if exchange.fetch_balance()[pair]['free'] > 0.1 \
+                            and prices < data_f.MA[-1] and ranges:
+                        order = create_limit(prices, 'sell')
+                        sl_order = {'status': None}
+                        tp_order = {'status': None}
+                        print('Order ID: ', order['orderId'], ' | ',
+                              'Price: ', order['price'], ' | ',
+                              'STATUS: ', order['status'])
+                    else:
+                        if prices > data_f.MA[-1]:
+                            print('Above MA')
+                        elif not ranges:
+                            print('Too much SL ranges')
+                        else:
+                            print('Insufficient funds')
+                except ConnectionError:
+                    print(ConnectionError)
+                    time.sleep(5)
+            else:
+                try:
+                    client.futures_cancel_all_open_orders(symbol=s_symbols)
+                    sl_order = {'status': None}
+                    tp_order = {'status': None}
+                    try:
+                        sl_order = create_stop_loss(data_f)
+                        tp_order = create_take_profit(data_f)
+                        print('Created new SL and TP order')
+                    except BinanceAPIException:
+                        create_close_market()
+                        sl_order = {'status': None}
+                        tp_order = {'status': None}
+                except ConnectionError:
+                    print(ConnectionError)
+                    time.sleep(5)
+        else:
+            try:
                 client.futures_cancel_all_open_orders(symbol=s_symbols)
-                create_close_market()
+                sl_order = {'status': None}
+                tp_order = {'status': None}
+                order = {'status': None}
                 # open short order
-                if exchange.fetch_balance()[pair]['free'] > 0.5 \
-                        and prices < data_f.MA[-1]:
+                if exchange.fetch_balance()[pair]['free'] > 0.1 \
+                        and prices < data_f.MA[-1] and ranges:
                     order = create_limit(prices, 'sell')
                     sl_order = {'status': None}
                     tp_order = {'status': None}
@@ -498,56 +528,33 @@ def trade(data):
                 else:
                     if prices > data_f.MA[-1]:
                         print('Above MA')
+                    elif not ranges:
+                        print('Too much SL ranges')
                     else:
                         print('Insufficient funds')
-            else:
-                client.futures_cancel_all_open_orders(symbol=s_symbols)
-                sl_order = {'status': None}
-                tp_order = {'status': None}
-                try:
-                    sl_order = create_stop_loss(data_f)
-                    tp_order = create_take_profit(data_f)
-                    print('Created new SL and TP order')
-                except BinanceAPIException:
-                    create_close_market()
-                    sl_order = {'status': None}
-                    tp_order = {'status': None}
-        else:
-            client.futures_cancel_all_open_orders(symbol=s_symbols)
-            sl_order = {'status': None}
-            tp_order = {'status': None}
-            order = {'status': None}
-            # open short order
-            if exchange.fetch_balance()[pair]['free'] > 0.5 \
-                    and prices < data_f.MA[-1]:
-                order = create_limit(prices, 'sell')
-                sl_order = {'status': None}
-                tp_order = {'status': None}
-                print('Order ID: ', order['orderId'], ' | ',
-                      'Price: ', order['price'], ' | ',
-                      'STATUS: ', order['status'])
-            else:
-                if prices > data_f.MA[-1]:
-                    print('Above MA')
-                else:
-                    print('Insufficient funds')
+            except ConnectionError:
+                print(ConnectionError)
+                time.sleep(5)
 
     else:
         if position_amt != 0:
-            if order['status'] is not None:
-                print('Order ID: ', order['orderId'], ' | ',
-                      'Price: ', order['price'], ' | ',
-                      'STATUS: ', order['status'])
-            if sl_order['status'] is not None:
-                sl_order = client.futures_get_order(symbol=s_symbols, orderId=sl_order['orderId'])
-                print('SL order ID: ', sl_order['orderId'], ' | ',
-                      'Price: ', sl_order['stopPrice'], ' | ',
-                      'STATUS: ', sl_order['status'])
-                if tp_order['status'] is not None:
-                    tp_order = client.futures_get_order(symbol=s_symbols, orderId=tp_order['orderId'])
-                    print('TP order ID: ', tp_order['orderId'], ' | ',
-                          'Price: ', tp_order['price'], ' | ',
-                          'STATUS: ', tp_order['status'])
+            try:
+                if order['status'] is not None:
+                    print('Order ID: ', order['orderId'], ' | ',
+                          'Price: ', order['price'], ' | ',
+                          'STATUS: ', order['status'])
+                if sl_order['status'] is not None:
+                    sl_order = client.futures_get_order(symbol=s_symbols, orderId=sl_order['orderId'])
+                    print('SL order ID: ', sl_order['orderId'], ' | ',
+                          'Price: ', sl_order['stopPrice'], ' | ',
+                          'STATUS: ', sl_order['status'])
+                    if tp_order['status'] is not None:
+                        tp_order = client.futures_get_order(symbol=s_symbols, orderId=tp_order['orderId'])
+                        print('TP order ID: ', tp_order['orderId'], ' | ',
+                              'Price: ', tp_order['price'], ' | ',
+                              'STATUS: ', tp_order['status'])
+            except TypeError:
+                print(TypeError)
             print(f'Unrealized profit({s_symbols}): ',
                   client.futures_position_information(symbol=s_symbols)[0]['unRealizedProfit'], pair)
             print('Total unrealized profit: ',
@@ -662,6 +669,8 @@ def create_stop_loss(data):
             else:
                 stop_l = {'status': None}
                 return stop_l
+        except ConnectionError:
+            time.sleep(2)
 
 
 def create_take_profit(data, price=0):
@@ -712,6 +721,8 @@ def create_take_profit(data, price=0):
             create_close_market()
         else:
             print(tp_error)
+    except ConnectionError:
+        time.sleep(2)
 
 
 def create_close_market():
@@ -734,6 +745,19 @@ def create_close_market():
         print('CLOSE POSITION ERROR: ', ex_market)
         time.sleep(1)
         order = {'status': None}
+    except ConnectionError:
+        time.sleep(2)
+
+
+def sl_range(data):
+    if data.in_uptrend[-1]:
+        result = (data.close[-1] / data.lowerband[-1]) - 1
+    else:
+        result = (data.upperband[-1] / data.close[-1]) - 1
+    if result * 100 < my_range:
+        return True
+    else:
+        return False
 
 
 def check_real_time():
@@ -746,9 +770,27 @@ def check_real_time():
             sl_order = client.futures_get_order(symbol=s_symbols, orderId=sl_order['orderId'])
         if tp_order['status'] is not None:
             tp_order = client.futures_get_order(symbol=s_symbols, orderId=tp_order['orderId'])
+        if order['status'] == 'FILLED' and position_amt == 0:
+            try:
+                client.futures_cancel_all_open_orders(symbol=s_symbols)
+                sl_order = {'status': None}
+                tp_order = {'status': None}
+                order = {'status': None}
+            except NetworkError or ConnectionError:
+                time.sleep(2)
+
+        elif order['status'] != 'NEW' and position_amt == 0:
+            if sl_order['status'] is not None or tp_order['status'] is not None:
+                try:
+                    client.futures_cancel_all_open_orders(symbol=s_symbols)
+                    sl_order = {'status': None}
+                    tp_order = {'status': None}
+                    order = {'status': None}
+
+                except NetworkError or ConnectionError:
+                    time.sleep(2)
     except NetworkError or ConnectionError or ChunkedEncodingError:
         time.sleep(2)
-        position_amt = float(client.futures_position_information(symbol=s_symbols)[0]['positionAmt'])
     except BinanceAPIException as order_error:
         if order_error.code == -2021:
             print(order_error)
@@ -756,35 +798,13 @@ def check_real_time():
             order = {'status': None}
             sl_order = {'status': None}
             tp_order = {'status': None}
-    if order['status'] is not None:
-        try:
-            if position_amt == 0 and order['status'] != 'NEW':
-                client.futures_cancel_all_open_orders(symbol=s_symbols)
-                sl_order = {'status': None}
-                tp_order = {'status': None}
-                order = {'status': None}
-        except NetworkError:
-            pass
-        except ConnectionError:
-            pass
-    elif order['status'] is None:
-        try:
-            if position_amt == 0:
-                open_order_num = client.futures_get_open_orders(symbol=s_symbols)
-                if len(open_order_num) > 0:
-                    client.futures_cancel_all_open_orders(symbol=s_symbols)
-                    sl_order = {'status': None}
-                    tp_order = {'status': None}
-                    order = {'status': None}
-            else:
-                pass
-        except NetworkError:
-            pass
-        except ConnectionError:
-            pass
+    except TypeError:
+        client.futures_cancel_all_open_orders(symbol=s_symbols)
+        order = {'status': None}
+        sl_order = {'status': None}
+        tp_order = {'status': None}
 
 
-# import asyncio
 warnings.filterwarnings('ignore')
 # pd.set_option('display.max_columns', None)
 
@@ -796,7 +816,7 @@ SECRET = '9HHMYPzOsPNntMUviaXbVOr4GUJOtRyybcIyeqMJmbz3N9R5ph8C3tbGs4sTuRPt'
 exchange = ccxt.binanceusdm({'apiKey': API, 'secret': SECRET})
 client = Client(API, SECRET)
 status = exchange.fetch_status()
-print('CONNECTION: ', status['status'])
+print('CONNECTION:', status['status'], '\t|\tTime:', datetime.today().strftime('%H:%M:%S'))
 
 while True:
     try:
@@ -806,71 +826,89 @@ while True:
         print(f'ERROR @ Connection phase: {ex}')
         time.sleep(30)
 
-# define symbols
-symbols = None
-symbol = None
-s_symbols = None
-while symbols not in exchange.symbols:
-    # sym = ['ADA', 'BNB', 'ETH']
-    symbol = input('Symbol: ').upper()
-    # symbol = 'ADA'
+while True:
+    # define symbols
+    symbols = None
+    symbol = None
+    s_symbols = None
+    while symbols not in exchange.symbols:
+        # sym = ['ADA', 'BNB', 'ETH']
+        symbol = input('Symbol: ').upper()
+        # symbol = 'ADA'
 
-    pair = 'USDT'
-    symbols = f'{symbol}/{pair}'
-    s_symbols = f'{symbol}{pair}'
-    time.sleep(0.5)
-    if symbol == 'DIR':
-        pprint(exchange.symbols)
+        pair = 'USDT'
+        symbols = f'{symbol}/{pair}'
+        s_symbols = f'{symbol}{pair}'
+        time.sleep(0.5)
+        if symbol == 'DIR':
+            pprint(exchange.symbols)
 
-# define timeframe
-timeframe_set = ['1m', '5m', '15m', '1h', '4h', '1d']
-timeframe = None
-while timeframe not in timeframe_set:
-    timeframe = input('Timeframe(1m, 15m, 1h, 4h, 1d): ')
+    # define timeframe
+    timeframe_set = ['1m', '5m', '15m', '1h', '4h', '1d']
+    timeframe = None
+    while timeframe not in timeframe_set:
+        timeframe = input('Timeframe(1m, 15m, 1h, 4h, 1d): ')
 
-my_l_target = 0
-while my_l_target <= 0:
-    try:
-        my_l_target = float(input('Target(ratio) : '))
-
-    except ValueError:
-        print('Value error')
-
-# ATR period **
-my_period = str(input('(ATR)Period: '))
-if int(my_period) in range(1, 21):
-    period = int(my_period)
-elif my_period == '':
-    period = 10
-
-ma = int(input('Moving average: '))
-
-# SQL engine
-engine = sqlalchemy.create_engine('sqlite:///supertrend.db')
-bands = ''
-
-leverage = ''
-while leverage == '':
-    # set leverage
-    set_leverage = int(input('Leverage: '))
-    try:
-        leverage = client.futures_change_leverage(symbol=s_symbols, leverage=set_leverage)
-    except BinanceAPIException as leverage_error:
-        if leverage_error.code == -4028:
-            print('Leverage is not valid')
-
-# change margin type to isolate
-position_amt = float(client.futures_position_information(symbol=s_symbols)[0]['positionAmt'])
-margin_type = ''
-while margin_type != 'isolated':
-    margin_type = client.futures_position_information(symbol=s_symbols)[0]['marginType']
-    if margin_type != 'isolated':
+    my_l_target = 0
+    while my_l_target <= 0:
         try:
-            client.futures_change_margin_type(symbol=s_symbols, marginType='ISOLATED')
-        except Exception as e:
-            print(e)
-            time.sleep(60)
-    print('Margin type: ', margin_type.upper())
+            my_l_target = float(input('Target(ratio) : '))
+
+        except ValueError:
+            print('Value error')
+
+    my_range = 0
+    while my_range == 0:
+        my_range = float(input('SL range: '))
+
+    # ATR period **
+    period = None
+    while period not in range(0, 101):
+        my_period = str(input('(ATR)Period: '))
+        if int(my_period) in range(1, 101):
+            period = int(my_period)
+        elif my_period == '':
+            period = 10
+
+    # Moving average
+    ma = None
+    while type(ma) is not int:
+        ma = int(input('Moving average: '))
+
+    # SQL engine
+    engine = sqlalchemy.create_engine('sqlite:///supertrend.db')
+    bands = ''
+
+    leverage = ''
+    while leverage == '':
+        # set leverage
+        set_leverage = int(input('Leverage: '))
+        try:
+            leverage = client.futures_change_leverage(symbol=s_symbols, leverage=set_leverage)
+        except BinanceAPIException as leverage_error:
+            if leverage_error.code == -4028:
+                print('Leverage is not valid')
+
+    # change margin type to isolate
+    position_amt = float(client.futures_position_information(symbol=s_symbols)[0]['positionAmt'])
+    margin_type = ''
+    while margin_type != 'isolated':
+        margin_type = client.futures_position_information(symbol=s_symbols)[0]['marginType']
+        if margin_type != 'isolated':
+            try:
+                client.futures_change_margin_type(symbol=s_symbols, marginType='ISOLATED')
+            except Exception as e:
+                print(e)
+                time.sleep(60)
+        print('Margin type: ', margin_type.upper())
+    confirm = input('Confirm? (Y/N)')
+    if confirm.upper() == 'Y':
+        break
+    elif confirm.upper() == 'N':
+        pass
+    else:
+        print('Please enter Y or N')
+
 
 answers = None
 while answers is None:
@@ -882,14 +920,10 @@ while answers is None:
                 order = client.futures_get_order(symbol=s_symbols, orderId=int(file.read()))
 
             if order['status'] == 'FILLED' and position_amt != 0:
-                with open(f'oder/{symbol}/{symbol}{timeframe}_order.txt', 'w') as order_file:
-                    order_file.write(str(order['orderId']))
                 print('Order ID: ', order['orderId'], ' | ',
                       'Price: ', order['price'], ' | ',
                       'STATUS: ', order['status'])
             elif order['status'] == 'NEW' and position_amt == 0:
-                with open(f'order/{symbol}/{symbol}{timeframe}_order.txt', 'w') as order_file:
-                    order_file.write(str(order['orderId']))
                 print('Order ID: ', order['orderId'], ' | ',
                       'Price: ', order['price'], ' | ',
                       'STATUS: ', order['status'])
