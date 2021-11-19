@@ -397,9 +397,7 @@ def trade(data):
                         order = create_limit(prices, 'buy')
                         sl_order = {'status': None}
                         tp_order = {'status': None}
-                        print('Order ID: ', order['orderId'], ' | ',
-                              'Price: ', order['price'], ' | ',
-                              'STATUS: ', order['status'])
+
                     else:
                         if prices < data_f.MA[-1]:
                             print('Below MA')
@@ -447,9 +445,6 @@ def trade(data):
                 if exchange.fetch_balance()[pair]['free'] > 0.1 \
                         and prices > data_f.MA[-1] and ranges:
                     order = create_limit(prices, 'buy')
-                    print('Order ID: ', order['orderId'], ' | ',
-                          'Price: ', order['price'], ' | ',
-                          'STATUS: ', order['status'])
 
                 else:
                     if prices < data_f.MA[-1]:
@@ -481,9 +476,7 @@ def trade(data):
                         order = create_limit(prices, 'sell')
                         sl_order = {'status': None}
                         tp_order = {'status': None}
-                        print('Order ID: ', order['orderId'], ' | ',
-                              'Price: ', order['price'], ' | ',
-                              'STATUS: ', order['status'])
+
                     else:
                         if prices > data_f.MA[-1]:
                             print('Above MA')
@@ -522,9 +515,7 @@ def trade(data):
                     order = create_limit(prices, 'sell')
                     sl_order = {'status': None}
                     tp_order = {'status': None}
-                    print('Order ID: ', order['orderId'], ' | ',
-                          'Price: ', order['price'], ' | ',
-                          'STATUS: ', order['status'])
+
                 else:
                     if prices > data_f.MA[-1]:
                         print('Above MA')
@@ -598,6 +589,9 @@ def create_limit(limit_price, side_str):
                                              quantity=qty,
                                              price=str(prices))
             print('Limit order had been created')
+            print('Order ID: ', od['orderId'], ' | ',
+                  'Price: ', od['price'], ' | ',
+                  'STATUS: ', od['status'])
             try:
                 with open(f'order/{symbol}/{symbol}{timeframe}_order.txt', 'w') as order__:
                     order__.write(str(od['orderId']))
@@ -621,7 +615,7 @@ def create_limit(limit_price, side_str):
                 print('Min Qty', min_qty)
             else:
                 return {'status': None}
-        except ConnectionError:
+        except ConnectionError or NetworkError or ReadTimeout:
             time.sleep(10)
 
 
